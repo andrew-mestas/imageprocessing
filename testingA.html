@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head></head>
+<style>
+  video, canvas {
+    border: 1px solid;
+  }
+  .container {
+    display: flex;
+    flex-direction: row;
+  }
+  .row{
+    flex-direction: row;
+    align-self: center;
+  }
+</style>
+<body>
+  <div class="container">
+    <div class="row">
+      <video id="video" width="320" height="240" autoplay></video>
+      <canvas id="canvas" width="320" height="240"></canvas>
+       <div class="row">
+      <button id="begin">Begin Capturing</button>
+      <button id="snap">Single Frame</button>
+      <button id="clear">Stop</button>
+      <button id="whitebalance">White Balance</button>
+      <input type="checkbox" id="parallel">Parallel</input>
+      <input type="number" min="0" id="number">Threads</input>
+      <input type="button" value="Refresh" onClick="window.location.reload()">
+    </div>
+    </div>
+    <div class="row">
+      COLORS
+      <div class="info"></div>      
+      <div class="stats"></div>
+      <canvas id="chart" width="320" height="240"></canvas>
+      <canvas id="bar" width="320" height="240"></canvas>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.2.2/Chart.min.js"></script>
+  <script src="files/chartdata.js"></script>
+  <script src="files/buttonControls.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.5/socket.io.js"></script>
+  <script src="files/imageProcess.3.js"></script>
+  <script>
+     var whiteBalance = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+     var labels = ['Maroon', 'Red', 'Green', 'Lime', 'Navy', 'Blue', 'Olive', 'Orange', 'Yellow', 'Teal', 'Cyan', 'Purple', 'Magenta', 'Black', 'White'];
+     var coordsMatrix = [[110, 70, 50, 50], [180, 70, 50, 50]];
+     var totalsC;
+     var offline = false;
+     var times = [];
+     var workers = false;
+     var parallel = false;
+     var threads = 0;
+     var computeWorkers = [];
+     var parallelInitialized = false;
+     var accumulatedTotals = [];
+     var completed = 0;
+     var start = 0;
+     var end = 0;
+    if (typeof(Worker) !== "undefined") {
+      console.log("Web workers available.");
+      workers = true;
+    } else {
+      console.log("No Web workers available");
+      workers = false;
+    }
+   
+    function storeWhiteBalance(){
+      whiteBalance = totalsC;
+    }  
+
+    function accumulateTotals(data){
+      accumulatedTotals[data.idx] = data.data;
+      completed = completed + 1;
+      if(completed === computeWorkers.length){
+        end  = performance.now();
+        var time = end - start;
+        times.push(time);       
+        completed = 0;
+     
+        parallelUpdate();
+      }
+    }
+
+    function spawnWorkers(){
+      for(var i=0; i<threads; i++){
+        computeWorkers.push(new Worker('./files/processParallel.js'));
+        computeWorkers[i].addEventListener('message', function(e) {
+        // Log the workers message.
+          accumulateTotals(e.data);
+        }, false);
+      }
+      console.log('Created: ', computeWorkers.length, ' workers.')
+    }
+    // // http://stackoverflow.com/questions/8495687/split-array-into-chunks
+    // function chunk (arr, len) {
+    //   var chunks = [],
+    //   i = 0,
+    //   n = arr.length;
+    //   while (i < n) {
+    //     chunks.push(arr.slice(i, i += len));
+    //   }
+    //   return chunks;
+    // }
+    // Array.chunk = chunk;
+
+    function parallelUpdate(){
+      // totalsC = totals;
+      totals = accumulatedTotals;
+      totals = totals.map(function(total){
+        return total.map(function(v, i){return (v-whiteBalance[i] < 0) ? 0 : v-whiteBalance[i] });  
+      })
+      if(!offline){
+        updateLine(totals[0]);
+        updateBar(totals[1]);
+      }
+        document.getElementsByClassName("stats")[0].innerHTML = meanAndStandardDeviation(times).Mean;
+      // socket.emit('raw data', {data: dataValues.data, height: dataValues.height, width: dataValues.width});
+ 
+    }
+
+    function updateChartParallel(context){
+      var dataValues = context.getImageData(coordsMatrix[0][0], coordsMatrix[0][1], coordsMatrix[0][2], coordsMatrix[0][3]).data.buffer;
+      var dataValues2 = context.getImageData(coordsMatrix[1][0], coordsMatrix[1][1], coordsMatrix[1][2], coordsMatrix[1][3]).data.buffer;
+      // chunks.forEach(function(chunk, idx){
+      var b = new ArrayBuffer(8);
+      var c = new ArrayBuffer(8);
+      var d = new ArrayBuffer(4);
+      var t = new ArrayBuffer(4);
+      var v = new Int32Array(b);
+      var g = new Int32Array(c);
+      var m = new Int32Array(d);
+      var n = new Int32Array(t);
+      v[0] = coordsMatrix[0][2];
+      v[1] = coordsMatrix[0][3];
+      g[0] = coordsMatrix[1][2];
+      g[1] = coordsMatrix[1][3];
+      m[0] = 0;
+      n[0] = 1;
+      var dimensionsBuffer = v.buffer;
+      var dimensionsBuffer2 = g.buffer;
+      var count1Buf = m.buffer;
+      var count2Buf = n.buffer;
+
+        computeWorkers[0].postMessage({values: dataValues, dim: dimensionsBuffer, idx: count1Buf}, [dataValues, dimensionsBuffer, count1Buf]);
+        computeWorkers[0].postMessage({values: dataValues2, dim: dimensionsBuffer2, idx: count2Buf}, [dataValues2, dimensionsBuffer2, count2Buf]);
+
+       start = performance.now();
+     }
+
+
+    function updateChart(context){
+      // context.drawImage(video, 0, 0, 320, 240);
+      var dataValues = context.getImageData(coordsMatrix[0][0], coordsMatrix[0][1], coordsMatrix[0][2], coordsMatrix[0][3]);
+      var start = performance.now();
+      var totals =  getTotals(dataValues);
+      totalsC = totals;
+      totals = totals.map(function(v, i){return (v-whiteBalance[i] < 0) ? 0 : v-whiteBalance[i] });  
+      var end  = performance.now();
+
+      var time = end - start;
+      times.push(time)
+      if(!offline){
+        updateLine(totals);
+        updateBar(totals);
+      } else {
+        document.getElementsByClassName("info")[0].innerHTML = totals;
+      }
+        document.getElementsByClassName("stats")[0].innerHTML = meanAndStandardDeviation(times).Mean;
+      // socket.emit('raw data', {data: dataValues.data, height: dataValues.height, width: dataValues.width});
+    }
+             
+    function updateLine(totals){
+      myLineChart.data.datasets[0].data = totals;
+      myLineChart.update();
+    }
+
+    function updateBar(totals){
+      myBarChart.data.datasets[0].data = totals;
+      myBarChart.update();
+    }
+
+    function updateLoop() {
+      coordsMatrix.forEach(function(coord){
+        context.rect(coord[0], coord[1], coord[2], coord[3]);
+      })      
+      context.stroke();
+      if(parallel){
+        updateChartParallel(context)
+      } else {
+        updateChart(context);
+      }
+    }
+
+    function adjustScope(height, width, updown, leftright, idx){
+      var h = height || coordsMatrix[idx][0];
+      var w = width || coordsMatrix[idx][1];
+      var u = updown || coordsMatrix[idx][2];
+      var l = leftright || coordsMatrix[idx][3];
+      coordsMatrix[idx][0] = h;
+      coordsMatrix[idx][1] = w;
+      coordsMatrix[idx][2] = u;
+      coordsMatrix[idx][3] = l;
+    }
+
+      
+   
+  </script>
+</body>
+</html>
