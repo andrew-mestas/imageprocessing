@@ -1,6 +1,4 @@
 importScripts('imageProcess.3.js');
-
-
 self.addEventListener('message', function(e) {
   var byteArray = {}; 
   byteArray.data = new Uint8ClampedArray(e.data.values);

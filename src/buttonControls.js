@@ -25,7 +25,7 @@ var context = canvas.getContext('2d');
       interval = setInterval(function(){
         context.drawImage(video, 0, 0, 320, 240);
         updateLoop();
-      }, 40);
+      }, 10);
     });
 
     // Trigger photo take
@@ -45,6 +45,9 @@ var context = canvas.getContext('2d');
     // Clear Video source and erase canvas
     document.getElementById('clear').addEventListener('click', function(){
       video.src = '';
+      computeWorkers.forEach(function(worker){
+        worker.terminate();
+      }) 
       clearInterval(interval);
       context.clearRect(0, 0, 320, 240);
     });

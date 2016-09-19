@@ -6,40 +6,25 @@
     ALPHA: 3
   }
   function getTotals(dataValues) {        
-      var start = performance.now();
+    return getDataValues(separatedValues(dataValues))
+  }
 
-      var red = getAllColorValues(dataValues, COLOR.RED);
-      var green = getAllColorValues(dataValues, COLOR.GREEN);
-      var blue = getAllColorValues(dataValues, COLOR.BLUE);
-      var separatedValues = red.map(function(color, idx){
-        return [red[idx], green[idx], blue[idx]];
-      });
-      var end  = performance.now();
-      var time = end - start;
-      
-      var start1 = performance.now();
-      separatedValues1(dataValues);
-      var end1  = performance.now();
-      var time1 = end1 - start1; 
-      console.log(time, time1)
-    //  return (getDataValues(separatedValues, 0.2))
-    }
-
-  function separatedValues1(imageData){
+  function separatedValues(imageData){
     var redfn = colorFnGenerator(imageData, COLOR.RED);
     var greenfn = colorFnGenerator(imageData, COLOR.GREEN);
     var bluefn = colorFnGenerator(imageData, COLOR.BLUE);
-    var r = [];
-    var g = [];
-    var b = [];
+    var rgb = [];
+    var rgbs = [];
     for(var i=0; i< imageData.height; i++){
       for(var x=0; x< imageData.width; x++){
-        r.push(redfn(i,x,imageData));
-        g.push(greenfn(i,x,imageData));
-        b.push(bluefn(i,x,imageData));
+        rgb.push(redfn(i,x,imageData));
+        rgb.push(greenfn(i,x,imageData));
+        rgb.push(bluefn(i,x,imageData));
+        rgbs.push(rgb);
+        rgb = [];
       }
     }
-    return [r, g, b];
+    return rgbs;
   }
 // Picture
   function colorFnGenerator(imageData, COLOR){
@@ -59,18 +44,6 @@
     }
   }
 
-  function getAllColorValues(imageData, COLOR){
-    var getData = colorFnGenerator(imageData, COLOR);
-    var allData = [];
-
-    for(var i=0; i< imageData.height; i++){
-      for(var x=0; x< imageData.width; x++){
-        allData.push(getData(i,x,imageData));
-      }
-    }
-    return allData; 
-  }
-
   function squaredError(threeColorArray, singleThreeColor){
     var similarity = 0;
     for(var i=0; i<3;i++){
@@ -88,6 +61,7 @@
     var sd = values.reduce(function(a,b){return a + squareDiff(mean, b)},0);
     return {Mean: mean, SD: Math.sqrt(sd / values.length)}
   }
+
   function normalize(totals){
     var Stats = meanAndStandardDeviation(totals);
     return totals.map(function(x){
@@ -99,9 +73,8 @@
    return computeTotals(dataArray)
   }    
 
-
-function computeTotals(array){
-  var Color = [
+  function computeTotals(array){
+    var Color = [
        [128, 0, 0],
        [255, 0, 0],
        [0, 128, 0], 
