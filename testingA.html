@@ -40,41 +40,69 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.2.2/Chart.min.js"></script>
   <script src="files/chartdata.js"></script>
-  <script src="files/buttonControls.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.5/socket.io.js"></script>
   <script src="files/imageProcess.3.js"></script>
+  <script src="files/parallelHelpers.js"></script>
   <script>
-     var whiteBalance = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-     var labels = ['Maroon', 'Red', 'Green', 'Lime', 'Navy', 'Blue', 'Olive', 'Orange', 'Yellow', 'Teal', 'Cyan', 'Purple', 'Magenta', 'Black', 'White'];
-     var coordsMatrix = [[110, 70, 50, 50], [180, 70, 50, 50]];
-     var totalsC;
-     var offline = false;
-     var times = [];
-     var workers = false;
-     var parallel = false;
-     var threads = 0;
-     var computeWorkers = [];
-     var parallelInitialized = false;
-     var accumulatedTotals = [];
-     var completed = 0;
-     var start = 0;
-     var end = 0;
-    if (typeof(Worker) !== "undefined") {
-      console.log("Web workers available.");
-      workers = true;
-    } else {
-      console.log("No Web workers available");
-      workers = false;
-    }
-   
-    function storeWhiteBalance(){
-      whiteBalance = totalsC;
-    }  
+    // shim layer with setTimeout fallback
+    window.requestAnimFrame = (function(){
+      return  window.requestAnimationFrame       ||
+              window.webkitRequestAnimationFrame ||
+              window.mozRequestAnimationFrame    ||
+              function( callback ){
+                window.setTimeout(callback, 1000 / 60);
+              };
+    })();
+  var videoCanvas;
+  var parallel;
+  var coordsMatrix = [[110, 70, 50, 50], [180, 70, 50, 50]];
+  var whiteBalance = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  var offline = false;
+  var accumulatedTotals =[];
+  var completed = 0;
+  var start;
+  var times = [];
+  var time = new StopWatch;
 
+  document.getElementById('begin').addEventListener("click", function() {
+     var isParallel = document.getElementById("parallel").checked ? true : false;
+     var numberOfThreads = parseInt(document.getElementById("number").value);
+     videoCanvas = new VideoCanvas('video', 'canvas', {h: 320, w: 240, m: coordsMatrix, p: isParallel});
+     if(isParallel){
+      parallel = new PL(isParallel, numberOfThreads, './files/processParallel.js', accumulateTotals);
+      parallel.begin();
+     }     
+     videoCanvas.startVideo();
+  });
+
+  // Trigger photo take
+  document.getElementById('snap').addEventListener("click", function() {
+    window.cancelAnimationFrame(animFrameID);    
+    videoCanvas.drawVideoToCanvas();
+  });
+
+  // Clear Video source and erase canvas
+  document.getElementById('whitebalance').addEventListener('click', function(){
+    videoCanvas.drawVideoToCanvas();
+    updateChart(VideoCanvas.context);
+    storeWhiteBalance();
+  });
+
+  // Clear Video source and erase canvas
+  document.getElementById('clear').addEventListener('click', function(){
+    videoCanvas.clearCanvas();
+    if(parallel&&parallel.isParallel){
+      parallel.computeWorkers.forEach(function(worker){
+        worker.terminate();
+      });
+      parallel.isParallel = false;
+    }  
+  });
+      
     function accumulateTotals(data){
       accumulatedTotals[data.idx] = data.data;
       completed = completed + 1;
-      if(completed === computeWorkers.length){
+      if(completed === parallel.computeWorkers.length){
         end  = performance.now();
         var time = end - start;
         times.push(time);       
@@ -84,29 +112,7 @@
       }
     }
 
-    function spawnWorkers(){
-      for(var i=0; i<threads; i++){
-        computeWorkers.push(new Worker('./files/processParallel.js'));
-        computeWorkers[i].addEventListener('message', function(e) {
-        // Log the workers message.
-          accumulateTotals(e.data);
-        }, false);
-      }
-      console.log('Created: ', computeWorkers.length, ' workers.')
-    }
-    // // http://stackoverflow.com/questions/8495687/split-array-into-chunks
-    // function chunk (arr, len) {
-    //   var chunks = [],
-    //   i = 0,
-    //   n = arr.length;
-    //   while (i < n) {
-    //     chunks.push(arr.slice(i, i += len));
-    //   }
-    //   return chunks;
-    // }
-    // Array.chunk = chunk;
-
-    function parallelUpdate(){
+      function parallelUpdate(){
       // totalsC = totals;
       totals = accumulatedTotals;
       totals = totals.map(function(total){
@@ -144,31 +150,30 @@
       var count1Buf = m.buffer;
       var count2Buf = n.buffer;
 
-        computeWorkers[0].postMessage({values: dataValues, dim: dimensionsBuffer, idx: count1Buf}, [dataValues, dimensionsBuffer, count1Buf]);
-        computeWorkers[0].postMessage({values: dataValues2, dim: dimensionsBuffer2, idx: count2Buf}, [dataValues2, dimensionsBuffer2, count2Buf]);
+        parallel.computeWorkers[0].postMessage({values: dataValues, dim: dimensionsBuffer, idx: count1Buf}, [dataValues, dimensionsBuffer, count1Buf]);
+        parallel.computeWorkers[1].postMessage({values: dataValues2, dim: dimensionsBuffer2, idx: count2Buf}, [dataValues2, dimensionsBuffer2, count2Buf]);
 
        start = performance.now();
      }
 
 
     function updateChart(context){
-      // context.drawImage(video, 0, 0, 320, 240);
+      // VideoCanvas.context.drawImage(video, 0, 0, 320, 240);
       var dataValues = context.getImageData(coordsMatrix[0][0], coordsMatrix[0][1], coordsMatrix[0][2], coordsMatrix[0][3]);
-      var start = performance.now();
-      var totals =  getTotals(dataValues);
-      totalsC = totals;
-      totals = totals.map(function(v, i){return (v-whiteBalance[i] < 0) ? 0 : v-whiteBalance[i] });  
-      var end  = performance.now();
-
-      var time = end - start;
-      times.push(time)
+      var totals;
+      time.Execute(function(){
+        totals =  getTotals(dataValues);
+        totalsC = totals;
+        totals = totals.map(function(v, i){return (v-whiteBalance[i] < 0) ? 0 : v-whiteBalance[i] });  
+      });
+      
       if(!offline){
         updateLine(totals);
         updateBar(totals);
       } else {
         document.getElementsByClassName("info")[0].innerHTML = totals;
       }
-        document.getElementsByClassName("stats")[0].innerHTML = meanAndStandardDeviation(times).Mean;
+        document.getElementsByClassName("stats")[0].innerHTML = meanAndStandardDeviation(time.times).Mean;
       // socket.emit('raw data', {data: dataValues.data, height: dataValues.height, width: dataValues.width});
     }
              
@@ -182,17 +187,6 @@
       myBarChart.update();
     }
 
-    function updateLoop() {
-      coordsMatrix.forEach(function(coord){
-        context.rect(coord[0], coord[1], coord[2], coord[3]);
-      })      
-      context.stroke();
-      if(parallel){
-        updateChartParallel(context)
-      } else {
-        updateChart(context);
-      }
-    }
 
     function adjustScope(height, width, updown, leftright, idx){
       var h = height || coordsMatrix[idx][0];
