@@ -3,6 +3,7 @@ var StopWatch = function(){
   this.completed = 0,
   this.start = 0,
   this.end = 0
+  this.ImageProcess = new ImageProcess;
 };
 
 StopWatch.prototype.Execute = function(fn){
@@ -10,8 +11,23 @@ StopWatch.prototype.Execute = function(fn){
   fn();
   this.end = performance.now();
   var time = this.end - this.start;
+  this.times.push(time);
+}
+
+StopWatch.prototype.getMeanTime = function(){
+  return this.ImageProcess.meanAndStandardDeviation(this.times).Mean;
+}
+
+StopWatch.prototype.Start = function(){
+  this.start = performance.now();
+}
+
+StopWatch.prototype.End = function() {
+  this.end = performance.now();
+  var time = this.end - this.start;
   this.times.push(time)
 }
+
 
 var VideoCanvas = function(videoId, canvasId, dimensions){
   this.dimensions = dimensions;
@@ -20,6 +36,7 @@ var VideoCanvas = function(videoId, canvasId, dimensions){
   this.context = canvas.getContext('2d');
   this.coordsMatrix = this.dimensions.m;
   this.parallel = this.dimensions.p;
+  return this;
 };
 
 VideoCanvas.prototype.startVideo = function(){
@@ -30,16 +47,11 @@ VideoCanvas.prototype.startVideo = function(){
         this.video.play();
     });
   }
-    (function animloop(){
-        this.animFrameID = requestAnimFrame(animloop);
-        videoCanvas.drawVideoToCanvas();
-        videoCanvas.updateLoop();
-      })();
 }
 
 VideoCanvas.prototype.drawVideoToCanvas = function() {
   this.context.drawImage(this.video, 0, 0, this.dimensions.h, this.dimensions.w);
-  this.updateLoop();
+  this.drawRectangles();
 }
 
 VideoCanvas.prototype.clearCanvas = function(){
@@ -54,14 +66,13 @@ VideoCanvas.prototype.drawRectangles = function(){
   this.context.stroke();
 }
 
-VideoCanvas.prototype.updateLoop = function() {
-  this.drawRectangles();
-  if(parallel){
-    updateChartParallel(this.context)
-  } else {
-    updateChart(this.context);
-  }
-}
+// VideoCanvas.prototype.updateLoop = function() {
+//     if(parallel){
+//     sendDataParallel(this.context)
+//   } else {
+//     sendData(this.context);
+//   }
+// }
 
 var chartManager = function(charts){
   this.whiteBalance = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -71,7 +82,7 @@ var chartManager = function(charts){
 }
 
 
-var PL = function(isParallel, threads, file, fn) {
+var PL = function(isParallel, threads, file, fn, extPtr) {
   this.isParallel = isParallel;
   this.offline = false;
   this.workers = false;
@@ -81,6 +92,7 @@ var PL = function(isParallel, threads, file, fn) {
   this.parallelInitalized = false;
   this.accumulatedTotals = [];
   this.parallelFile = file;
+  this.externalPtr = extPtr || null;
   if (typeof(Worker) !== "undefined") {
       console.log("Web workers available.");
       this.workers = true;
@@ -88,6 +100,7 @@ var PL = function(isParallel, threads, file, fn) {
       console.log("No Web workers available");
       this.workers = false;
     }
+    return this;
 }
 
 PL.prototype.begin = function(){
@@ -98,11 +111,12 @@ PL.prototype.begin = function(){
 }
 
 PL.prototype.spawnWorkers = function(){
+  var ext = this.externalPtr;
   var self = this;
   for(var i=0; i<this.threads; i++){
     this.computeWorkers.push(new Worker(this.parallelFile));
     this.computeWorkers[i].addEventListener('message', function(e) {
-      self.parallelFn(e.data);
+      self.parallelFn.bind(ext, e.data)();
     }, false);
   }
   console.log('Created: ', this.computeWorkers.length, ' workers.')

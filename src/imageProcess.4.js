@@ -1,18 +1,17 @@
-  var Tools = Tools || {};
-  
-  Tools.ImageProcess = function() {
-    var totals;
-    var Stats = {
+
+var ImageProcess = function() {
+    this.totals;
+    this.Stats = {
       Mean : 0,
       SD : 0
     }
-    var COLOR = {
+    this.COLOR = {
       RED : 0,
       GREEN: 1,
       BLUE: 2,
       ALPHA: 3
     };
-    var Color = [
+    this.Color = [
        [128, 0, 0],
        [255, 0, 0],
        [0, 128, 0], 
@@ -31,14 +30,14 @@
     ];    
   };
 
-  Tools.ImageProcess.prototype.getDataValues = function(dataValues){
+  ImageProcess.prototype.getDataValues = function(dataValues){
     return this.computeTotals(this.separatedValues(dataValues))
   }
 
-  Tools.ImageProcess.prototype.separatedValues = function(imageData) {
-    var redfn = colorFnGenerator(imageData, COLOR.RED);
-    var greenfn = colorFnGenerator(imageData, COLOR.GREEN);
-    var bluefn = colorFnGenerator(imageData, COLOR.BLUE);
+  ImageProcess.prototype.separatedValues = function(imageData) {
+    var redfn = this.colorFnGenerator(imageData, this.COLOR.RED);
+    var greenfn = this.colorFnGenerator(imageData, this.COLOR.GREEN);
+    var bluefn = this.colorFnGenerator(imageData, this.COLOR.BLUE);
     var rgb = [];
     var rgbs = [];
     for(var i=0; i< imageData.height; i++){
@@ -53,7 +52,7 @@
     return rgbs;
   }
 
-  Tools.ImageProcess.prototype.colorFnGenerator = function(imageData, COLOR){
+  ImageProcess.prototype.colorFnGenerator = function(imageData, COLOR){
     switch(COLOR){
       case 0 :  return function(x,y,imageData) {
                   return imageData.data[((x*(imageData.width*4)) + (y*4)) + 0];
@@ -70,7 +69,7 @@
     }
   }
 
-  Tools.ImageProcess.prototype.squaredError = function(threeColorArray, singleThreeColor){
+  ImageProcess.prototype.squaredError = function(threeColorArray, singleThreeColor){
       var similarity = 0;
       for(var i=0; i<3;i++){
         similarity += Math.pow(singleThreeColor[i] - threeColorArray[i], 2);
@@ -78,30 +77,30 @@
       return similarity;
     }
 
-    Tools.ImageProcess.prototype.squareDiff = function(mean, value){
+    ImageProcess.prototype.squareDiff = function(mean, value){
       return Math.pow(value - mean, 2);
     }
 
-    Tools.ImageProcess.prototype.meanAndStandardDeviation = function(values){
-      var mean = values.reduce(function(a,b){return a+b}) / values.length;
-      var sd = values.reduce(function(a,b){return a + this.squareDiff(mean, b)},0);
+    ImageProcess.prototype.meanAndStandardDeviation = function(values){
+      var mean = values.reduce((a,b)=>{return a+b}) / values.length;
+      var sd = values.reduce((a,b)=>{return a + this.squareDiff(mean, b)},0);
       this.Stats = {Mean: mean, SD: Math.sqrt(sd / values.length)};
       return this.Stats;
     }
 
-    Tools.ImageProcess.prototype.normalize = function(totals){
+    ImageProcess.prototype.normalize = function(totals){
       this.meanAndStandardDeviation(totals);
-      return totals.map(function(x){
+      return totals.map((x)=>{
         return Math.pow( (( x - this.Stats.Mean) / this.Stats.SD ), 2);
       });
     }
 
-    Tools.ImageProcess.prototype.computeTotals = function(array){
+    ImageProcess.prototype.computeTotals = function(array){
       var totalCounts = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
       var cost = [];
-      array.forEach(function(threeColorArray){
+      array.forEach((threeColorArray) => {
         cost = [];
-        this.Color.forEach(function(color){
+        this.Color.forEach((color) => {
           cost.push(this.squaredError(threeColorArray, color));
         });
         var min = Math.min.apply(null, cost);
