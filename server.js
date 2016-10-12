@@ -15,7 +15,7 @@ var io = require('socket.io')(server);
 
 app.use('/files', express.static(path.join(__dirname + '/src')));
 app.get('/', function(req, res){
-  res.sendFile('testingA.html', {root: __dirname })
+  res.sendFile('index.html', {root: __dirname })
 });
 
 io.on('connection', function (socket) {

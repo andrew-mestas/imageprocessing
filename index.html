@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head></head>
+<style>
+  video, canvas {
+    border: 1px solid;
+  }
+  .container {
+    display: flex;
+    flex-direction: row;
+  }
+  .row{
+    flex-direction: row;
+    align-self: center;
+  }
+</style>
+<body>
+  <div class="container">
+    <div class="row">
+      <video id="video" width="320" height="240" autoplay></video>
+      <canvas id="canvas" width="320" height="240"></canvas>
+       <div class="row">
+      <button id="begin">Begin Capturing</button>
+      <button id="snap">Single Frame</button>
+      <button id="clear">Stop</button>
+      <button id="whitebalance">White Balance</button>
+      <input type="checkbox" id="parallel">Parallel</input>
+      <select id="number">Threads</select>
+      <input type="button" value="Refresh" onClick="window.location.reload()">
+    </div>
+    </div>
+    <div class="row">
+      Average Processing Time(ms)
+      <div class="info"></div>      
+      <div class="stats"></div>
+      <hr>
+      <!--<canvas id="chart" width="320" height="240"></canvas>-->
+      <!--<canvas id="bar" width="320" height="240"></canvas>-->
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.2.2/Chart.min.js"></script>
+  <!--<script src="files/chartdata.js"></script>-->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.5/socket.io.js"></script>
+  <script src="files/imageProcess.4.js"></script>
+  <script src="files/multiples.js"></script>
+  <script src="files/parallelHelpers.js"></script>
+  <script src="files/MainController.js"></script>
+  <script>
+    var options = {
+      videoId  : 'video',
+      canvasId : 'canvas',
+      parallelId : 'parallel',
+      numberId : 'number',
+      beginId  : 'begin',
+      shotId : 'snap',
+      clearId : 'clear',
+      whiteBalanceId : 'whitebalance',
+      height : 320,
+      width : 240,
+      divisions : 2,
+      offline : true,
+      parallelFileDefinition : './files/processParallel.js'
+    }
+
+    function updateLine(totals){
+      myLineChart.data.datasets[0].data = totals;
+      myLineChart.update();
+    }
+
+    function updateBar(totals){
+      myBarChart.data.datasets[0].data = totals;
+      myBarChart.update();
+    }
+
+    function adjustScope(height, width, updown, leftright, idx){
+      var h = height || coordsMatrix[idx][0];
+      var w = width || coordsMatrix[idx][1];
+      var u = updown || coordsMatrix[idx][2];
+      var l = leftright || coordsMatrix[idx][3];
+      coordsMatrix[idx][0] = h;
+      coordsMatrix[idx][1] = w;
+      coordsMatrix[idx][2] = u;
+      coordsMatrix[idx][3] = l;
+    }
+      
+   var Process = new MainController(options);
+   Process.Begin();
+
+  </script>
+</body>
+</html>
