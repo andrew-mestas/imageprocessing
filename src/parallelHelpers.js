@@ -66,14 +66,6 @@ VideoCanvas.prototype.drawRectangles = function(){
   this.context.stroke();
 }
 
-// VideoCanvas.prototype.updateLoop = function() {
-//     if(parallel){
-//     sendDataParallel(this.context)
-//   } else {
-//     sendData(this.context);
-//   }
-// }
-
 var chartManager = function(charts){
   this.whiteBalance = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   this.totals;

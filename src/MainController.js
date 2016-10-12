@@ -14,6 +14,7 @@
       this.parallelFileDefinition = options.parallelFileDefinition || './files/processParallel.js';
       this.videoCanvas;
       this.parallel;
+      this.possible = new Multiples(this.height).intersect(new Multiples(this.width)).generatePossible().createMatrix();
       this.coordsMatrix = [[110, 70, 50, 50], [180, 70, 50, 50]];
       this.whiteBalance = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
       this.offline = false;
@@ -45,8 +46,18 @@
       this.SetUpClickFunctions();
     }
 
+    MainController.prototype.addOptions = function(){
+      for(var i=0; i< this.possible.length; i++){
+        var x = document.getElementById(this.numberId);
+        var option = document.createElement("option");
+        option.text = Object.keys(this.possible)[i];
+        x.add(option);
+      }    
+    }
+
     MainController.prototype.SetUpClickFunctions = function() {
       document.getElementById(this.beginId).addEventListener("click", () => {
+          this.addOptions();
           this.isParallel = document.getElementById(this.parallelId).checked ? true : false;
           this.numberOfThreads = parseInt(document.getElementById(this.numberId).value);
           
