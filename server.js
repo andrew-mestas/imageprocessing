@@ -5,8 +5,8 @@ var fs = require('fs');
 var path = require('path');
 var app = express();
 var options = {
-  key: fs.readFileSync('./key.pem'),
-  cert: fs.readFileSync('./cert.pem'),
+  key: fs.readFileSync('./key.pem') || process.env['KEY'],
+  cert: fs.readFileSync('./cert.pem') || process.env['CERT'],
   requestCert: false,
   rejectUnauthorized: false
 };
