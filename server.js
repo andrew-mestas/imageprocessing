@@ -10,7 +10,7 @@ var options = {
   requestCert: false,
   rejectUnauthorized: false
 };
-var server = https.createServer(options, app).listen(443);
+var server = https.createServer(options, app).listen(process.env.PORT || 443);
 var io = require('socket.io')(server);
 
 app.use('/files', express.static(path.join(__dirname + '/src')));
