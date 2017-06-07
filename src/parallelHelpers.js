@@ -33,7 +33,7 @@ var VideoCanvas = function(videoId, canvasId, dimensions){
   this.dimensions = dimensions;
   this.video = document.getElementById(videoId);
   this.canvas = document.getElementById(canvasId);
-  this.context = canvas.getContext('2d');
+  this.context = this.canvas.getContext('2d');
   this.coordsMatrix = this.dimensions.m;
   this.parallel = this.dimensions.p;
   return this;
@@ -66,11 +66,30 @@ VideoCanvas.prototype.drawRectangles = function(){
   this.context.stroke();
 }
 
+VideoCanvas.prototype.drawRectanglesWithColorFilled = function(color){
+  this.coordsMatrix.forEach(function(coord, idx){
+    this.context.beginPath();
+    this.context.rect(coord[0], coord[1], coord[2], coord[3]);
+    this.context.fillStyle = chartManager().labels[color[idx]];
+    this.context.fill();
+  }, this);      
+}
+
+VideoCanvas.prototype.drawRectanglesWithColor = function(color){
+  this.coordsMatrix.forEach(function(coord, idx){
+    this.context.beginPath();
+    this.context.strokeStyle = chartManager().labels[color[idx]];
+    this.context.rect(coord[0], coord[1], coord[2], coord[3]);
+    this.context.stroke();
+  }, this);      
+}
+
 var chartManager = function(charts){
   this.whiteBalance = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   this.totals;
   this.labels = ['Maroon', 'Red', 'Green', 'Lime', 'Navy', 'Blue', 'Olive', 'Orange', 'Yellow', 'Teal', 'Cyan', 'Purple', 'Magenta', 'Black', 'White'];
   this.charts = charts;
+  return this;
 }
 
 

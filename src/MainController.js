@@ -177,9 +177,9 @@
         updateLine(totals);
         updateBar(totals);
       } else {
-        document.getElementsByClassName("info")[0].innerHTML = totals;
+        // document.getElementsByClassName("info")[0].innerHTML = totals;
       }
-        document.getElementsByClassName("stats")[0].innerHTML = this.TimePtr.getMeanTime().toFixed(2).toString() + " ms";
+        // document.getElementsByClassName("stats")[0].innerHTML = this.TimePtr.getMeanTime().toFixed(2).toString() + " ms";
     } 
 
     MainController.prototype.DispatchTotals = function(data){
@@ -197,12 +197,18 @@
       totals = totals.map((total) =>{
         return total.map((v, i)=>{return (v-this.whiteBalance[i] < 0) ? 0 : v-this.whiteBalance[i] });  
       })
+
+      var values = totals.map((pixels)=>{
+        return pixels.indexOf(Math.max.apply(null, pixels));
+      });
+      var videoCanvas = new this.VideoCanvasPtr("", "color", {h: this.height, w: this.width, m: this.coordsMatrix, p: this.isParallel});
+      videoCanvas.drawRectanglesWithColorFilled(values);
       if(!this.offline){
         updateLine(totals[0]);
         updateBar(totals[1]);
       }
-      var times = this.getParallelTotals();
-      document.getElementsByClassName("stats")[0].innerHTML = times;
+      // var times = this.getParallelTotals();
+      // document.getElementsByClassName("stats")[0].innerHTML = times;
       // socket.emit('raw data', {data: dataValues.data, height: dataValues.height, width: dataValues.width});
     }
 
